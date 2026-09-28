@@ -1,0 +1,6 @@
+{
+  "name": "Petal & Print Handcrafted Studio",
+  "description": "Bespoke handcrafted pipe cleaner bouquets, personalized birthday magazines, and artisanal keepsake gifts with custom designs and tiered pricing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
