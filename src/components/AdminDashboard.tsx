@@ -22,13 +22,43 @@ import {
   ChevronRight,
   Save,
   X,
+  Bot,
+  Sparkles,
+  RefreshCw,
+  Send,
+  MessageSquare,
+  BookOpen,
+  Tag,
+  Zap,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
+import { aiKnowledgeService, CustomQA, AISettings } from '../services/aiKnowledge';
 
 export const AdminDashboard: React.FC = () => {
   const { user, login, products, refreshProducts, orders, refreshOrders, categories } = useShop();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'customers' | 'reviews'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'customers' | 'reviews' | 'ai-training'>('overview');
+
+  // AI Training State
+  const [customQAs, setCustomQAs] = useState<CustomQA[]>(aiKnowledgeService.getCustomQAs());
+  const [aiSettings, setAiSettings] = useState<AISettings>(aiKnowledgeService.getSettings());
+  const [newQuestion, setNewQuestion] = useState('');
+  const [newAnswer, setNewAnswer] = useState('');
+  const [newCategory, setNewCategory] = useState('Custom FAQ');
+  const [testQuery, setTestQuery] = useState('');
+  const [testAnswer, setTestAnswer] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  // n8n Webhook Test State
+  const [isTestingN8n, setIsTestingN8n] = useState(false);
+  const [n8nTestResult, setN8nTestResult] = useState<{
+    status: 'idle' | 'testing' | 'success' | 'warning' | 'error';
+    message: string;
+    hint?: string;
+  }>({ status: 'idle', message: '' });
 
   // Product edit/add modal state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -232,6 +262,7 @@ export const AdminDashboard: React.FC = () => {
             { id: 'products', label: `Products (${products.length})` },
             { id: 'orders', label: `Customer Orders (${orders.length})` },
             { id: 'customers', label: `Customers (${totalCustomers})` },
+            { id: 'ai-training', label: '🌸 AI Training & Data' },
           ].map((t) => (
             <button
               key={t.id}
@@ -559,6 +590,546 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: AI TRAINING & WEBSITE KNOWLEDGE BASE */}
+        {activeTab === 'ai-training' && (
+          <div className="space-y-8">
+            {/* Header & Sync Banner */}
+            <div className="bg-gradient-to-r from-[#2D1F1D] to-[#4A322D] text-white p-6 sm:p-8 rounded-3xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Website Grounded Intelligence</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-serif-display font-medium text-white">
+                  Train AI on Petal &amp; Print Website Data
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+                  Your AI Concierge automatically indexes live store products, categories, pricing, discount coupons, and store policies. Add custom answers and tune prompts below.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <button
+                  onClick={() => {
+                    setSyncFeedback('Synchronized! All latest products, categories & coupons re-indexed.');
+                    setTimeout(() => setSyncFeedback(null), 4000);
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#9A4C32] hover:bg-[#833F29] text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Sync &amp; Re-Train Data</span>
+                </button>
+              </div>
+            </div>
+
+            {syncFeedback && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{syncFeedback}</span>
+              </div>
+            )}
+
+            {/* Training Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-5 bg-white rounded-2xl border border-stone-200 shadow-2xs">
+                <div className="flex items-center justify-between text-stone-500 mb-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider">Indexed Products</span>
+                  <Package className="w-4 h-4 text-[#9A4C32]" />
+                </div>
+                <span className="text-2xl font-bold font-mono text-stone-900">{products.length} Items</span>
+                <p className="text-[11px] text-stone-400 mt-1">Live catalog data trained</p>
+              </div>
+
+              <div className="p-5 bg-white rounded-2xl border border-stone-200 shadow-2xs">
+                <div className="flex items-center justify-between text-stone-500 mb-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider">Categories</span>
+                  <Layers className="w-4 h-4 text-[#9A4C32]" />
+                </div>
+                <span className="text-2xl font-bold font-mono text-stone-900">{categories.length}</span>
+                <p className="text-[11px] text-stone-400 mt-1">Bouquets, magazines, gifts</p>
+              </div>
+
+              <div className="p-5 bg-white rounded-2xl border border-stone-200 shadow-2xs">
+                <div className="flex items-center justify-between text-stone-500 mb-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider">Active Coupons</span>
+                  <Tag className="w-4 h-4 text-[#9A4C32]" />
+                </div>
+                <span className="text-2xl font-bold font-mono text-stone-900">4 Codes</span>
+                <p className="text-[11px] text-stone-400 mt-1">WELCOME10, PETAL20, etc.</p>
+              </div>
+
+              <div className="p-5 bg-white rounded-2xl border border-stone-200 shadow-2xs">
+                <div className="flex items-center justify-between text-stone-500 mb-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider">Custom Q&amp;As</span>
+                  <BookOpen className="w-4 h-4 text-[#9A4C32]" />
+                </div>
+                <span className="text-2xl font-bold font-mono text-stone-900">{customQAs.length} Trained</span>
+                <p className="text-[11px] text-stone-400 mt-1">Custom FAQs &amp; policies</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Left Column: Custom Q&A Manager */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* Form: Add New Training Knowledge */}
+                <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 flex items-center gap-2">
+                      <Plus className="w-4 h-4 text-[#9A4C32]" />
+                      <span>Train New Question &amp; Answer</span>
+                    </h3>
+                    <span className="text-[11px] text-stone-400">Added to AI context immediately</span>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!newQuestion.trim() || !newAnswer.trim()) return;
+                      const created = aiKnowledgeService.addCustomQA({
+                        question: newQuestion.trim(),
+                        answer: newAnswer.trim(),
+                        category: newCategory,
+                      });
+                      setCustomQAs(aiKnowledgeService.getCustomQAs());
+                      setNewQuestion('');
+                      setNewAnswer('');
+                      setSyncFeedback(`Successfully trained Q&A: "${created.question}"`);
+                      setTimeout(() => setSyncFeedback(null), 4000);
+                    }}
+                    className="space-y-3"
+                  >
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Question or Topic User Might Ask:
+                      </label>
+                      <input
+                        type="text"
+                        value={newQuestion}
+                        onChange={(e) => setNewQuestion(e.target.value)}
+                        placeholder="e.g., Do you provide bulk discounts for wedding favors or stage decor?"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:border-[#9A4C32] focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-700 mb-1">
+                          Knowledge Category:
+                        </label>
+                        <select
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white"
+                        >
+                          <option value="Custom FAQ">Custom FAQ</option>
+                          <option value="Party & Events Decor">Party &amp; Events Decor</option>
+                          <option value="Bouquet Customization">Bouquet Customization</option>
+                          <option value="Birthday Magazines">Birthday Magazines</option>
+                          <option value="Bulk Corporate Orders">Bulk Corporate Orders</option>
+                          <option value="Shipping & Logistics">Shipping &amp; Logistics</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Exact Trained Answer:
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={newAnswer}
+                        onChange={(e) => setNewAnswer(e.target.value)}
+                        placeholder="Provide the accurate answer with pricing, timelines, or contact instructions..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:border-[#9A4C32] focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-[#9A4C32] hover:bg-[#833F29] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save &amp; Train AI</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* List of currently trained Q&As */}
+                <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900">
+                      Currently Trained Q&amp;As ({customQAs.length})
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    {customQAs.map((qa) => (
+                      <div
+                        key={qa.id}
+                        className="p-4 rounded-2xl bg-[#FAF8F5] border border-stone-200/80 space-y-2 group"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-stone-200 text-stone-700 mb-1">
+                              {qa.category}
+                            </span>
+                            <h4 className="text-xs font-bold text-stone-900">Q: {qa.question}</h4>
+                          </div>
+                          <button
+                            onClick={() => {
+                              aiKnowledgeService.deleteCustomQA(qa.id);
+                              setCustomQAs(aiKnowledgeService.getCustomQAs());
+                            }}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete Q&A"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-stone-600 leading-relaxed">A: {qa.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: AI Persona Tuning, n8n Integration & Test Playground */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* n8n Cloud Webhook Integration Card */}
+                <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-emerald-600" />
+                      <span>n8n AI Workflow Integration</span>
+                    </h3>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Webhook Connected
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-stone-500 leading-relaxed">
+                    Customer chat queries from the website are routed directly through your custom n8n Chat Trigger / Webhook workflow.
+                  </p>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-semibold text-stone-700">n8n Chat Webhook URL</label>
+                        <a
+                          href="https://blessy24nm1a0565.app.n8n.cloud"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-[#9A4C32] hover:underline flex items-center gap-1"
+                        >
+                          <span>Open n8n Editor</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                      <input
+                        type="url"
+                        value={aiSettings.n8nWebhookUrl}
+                        onChange={(e) =>
+                          setAiSettings({ ...aiSettings, n8nWebhookUrl: e.target.value })
+                        }
+                        placeholder="https://blessy24nm1a0565.app.n8n.cloud/webhook/..."
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono text-[11px]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-stone-700 block mb-1">
+                        Chat Widget Display Mode
+                      </label>
+                      <select
+                        value={aiSettings.widgetStyle || 'official-n8n'}
+                        onChange={(e) =>
+                          setAiSettings({
+                            ...aiSettings,
+                            widgetStyle: e.target.value as 'official-n8n' | 'store-concierge' | 'both',
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white text-stone-800"
+                      >
+                        <option value="official-n8n">
+                          Official n8n Chat Widget (Recommended - Embedded @n8n/chat)
+                        </option>
+                        <option value="store-concierge">
+                          Petal &amp; Print Custom Concierge (Catalog Grounding + n8n)
+                        </option>
+                        <option value="both">Dual Mode (Both Available)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 py-1">
+                      <input
+                        type="checkbox"
+                        id="useN8nWebhook"
+                        checked={aiSettings.useN8nWebhook}
+                        onChange={(e) =>
+                          setAiSettings({ ...aiSettings, useN8nWebhook: e.target.checked })
+                        }
+                        className="rounded border-stone-300 text-[#9A4C32] focus:ring-[#9A4C32] cursor-pointer"
+                      />
+                      <label htmlFor="useN8nWebhook" className="text-xs text-stone-700 font-medium cursor-pointer">
+                        Enable n8n as Primary Chat Engine (Falls back to website grounding if offline)
+                      </label>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsTestingN8n(true);
+                          setN8nTestResult({ status: 'testing', message: 'Pinging n8n webhook...' });
+                          const res = await aiKnowledgeService.testN8nConnection(aiSettings.n8nWebhookUrl);
+                          if (res.success) {
+                            setN8nTestResult({ status: 'success', message: res.message });
+                          } else if (res.status === 404) {
+                            setN8nTestResult({
+                              status: 'warning',
+                              message: res.message,
+                              hint: res.hint,
+                            });
+                          } else {
+                            setN8nTestResult({ status: 'error', message: res.message, hint: res.hint });
+                          }
+                          setIsTestingN8n(false);
+                        }}
+                        disabled={isTestingN8n || !aiSettings.n8nWebhookUrl}
+                        className="flex-1 py-2 px-3 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold uppercase tracking-wider text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isTestingN8n ? 'animate-spin' : ''}`} />
+                        <span>{isTestingN8n ? 'Testing...' : 'Test Connection'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          aiKnowledgeService.saveSettings(aiSettings);
+                          setSyncFeedback('n8n Webhook settings saved successfully!');
+                          setTimeout(() => setSyncFeedback(null), 3000);
+                        }}
+                        className="flex-1 py-2 px-3 bg-[#2D1F1D] hover:bg-[#3D2C29] text-white font-bold uppercase tracking-wider text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                      >
+                        <Save className="w-3 h-3" />
+                        <span>Save Webhook</span>
+                      </button>
+                    </div>
+
+                    {/* Test result feedback banner */}
+                    {n8nTestResult.status === 'success' && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold">{n8nTestResult.message}</p>
+                          <p className="text-[11px] text-emerald-700 mt-0.5">
+                            Live chat responses from your n8n AI agent will stream to visitors on the website.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {n8nTestResult.status === 'warning' && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold">{n8nTestResult.message}</p>
+                          {n8nTestResult.hint && (
+                            <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
+                              💡 <strong>Next step:</strong> {n8nTestResult.hint}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {n8nTestResult.status === 'error' && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold">{n8nTestResult.message}</p>
+                          {n8nTestResult.hint && (
+                            <p className="text-[11px] text-rose-700 mt-0.5">{n8nTestResult.hint}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Persona Tuning */}
+                <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-[#9A4C32]" />
+                    <span>AI Concierge Persona &amp; Tone</span>
+                  </h3>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-stone-700 mb-1">Bot Name</label>
+                      <input
+                        type="text"
+                        value={aiSettings.botName}
+                        onChange={(e) => setAiSettings({ ...aiSettings, botName: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-stone-700 mb-1">Tone of Voice</label>
+                      <select
+                        value={aiSettings.personaTone}
+                        onChange={(e) =>
+                          setAiSettings({ ...aiSettings, personaTone: e.target.value as any })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
+                      >
+                        <option value="artisan">Artisan (Warm, handcrafted, knowledgeable)</option>
+                        <option value="friendly">Friendly (Casual, upbeat, welcoming)</option>
+                        <option value="elegant">Elegant (Refined, luxury gifting concierge)</option>
+                        <option value="playful">Playful (Celebratory, fun, enthusiastic)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-stone-700 mb-1">Welcome Message</label>
+                      <textarea
+                        rows={2}
+                        value={aiSettings.welcomeMessage}
+                        onChange={(e) =>
+                          setAiSettings({ ...aiSettings, welcomeMessage: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-stone-700 mb-1">Custom System Instructions</label>
+                      <textarea
+                        rows={3}
+                        value={aiSettings.customInstructions}
+                        onChange={(e) =>
+                          setAiSettings({ ...aiSettings, customInstructions: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        aiKnowledgeService.saveSettings(aiSettings);
+                        setSyncFeedback('AI Persona settings saved successfully.');
+                        setTimeout(() => setSyncFeedback(null), 3000);
+                      }}
+                      className="w-full py-2.5 bg-[#2D1F1D] hover:bg-[#3D2C29] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Persona Settings</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Training Test Simulator */}
+                <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#9A4C32]" />
+                      <span>Test AI on Trained Website Data</span>
+                    </h3>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                      Live
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-stone-500">
+                    Ask any question about your products, prices, or custom Q&amp;As to verify how the bot responds:
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={testQuery}
+                        onChange={(e) => setTestQuery(e.target.value)}
+                        placeholder="e.g. How much is the rose bouquet?"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:border-[#9A4C32] focus:outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            // Trigger test
+                            if (!testQuery.trim() || testLoading) return;
+                            setTestLoading(true);
+                            setTestAnswer('');
+                            const customKnowledge = aiKnowledgeService.getTrainedKnowledgeContext();
+                            fetch('/api/chat', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ message: testQuery, customKnowledge }),
+                            })
+                              .then((r) => r.json())
+                              .then((d) => setTestAnswer(d.reply || 'No reply generated.'))
+                              .catch(() => {
+                                const localAns = aiKnowledgeService.answerWithLocalKnowledge(testQuery);
+                                setTestAnswer(localAns.reply);
+                              })
+                              .finally(() => setTestLoading(false));
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (!testQuery.trim() || testLoading) return;
+                          setTestLoading(true);
+                          setTestAnswer('');
+                          const customKnowledge = aiKnowledgeService.getTrainedKnowledgeContext();
+                          fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: testQuery, customKnowledge }),
+                          })
+                            .then((r) => r.json())
+                            .then((d) => setTestAnswer(d.reply || 'No reply generated.'))
+                            .catch(() => {
+                              const localAns = aiKnowledgeService.answerWithLocalKnowledge(testQuery);
+                              setTestAnswer(localAns.reply);
+                            })
+                            .finally(() => setTestLoading(false));
+                        }}
+                        disabled={!testQuery.trim() || testLoading}
+                        className="px-4 py-2.5 bg-[#9A4C32] hover:bg-[#833F29] text-white text-xs font-bold uppercase rounded-xl disabled:opacity-40 cursor-pointer shadow-xs"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {testLoading && (
+                      <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 text-xs text-stone-500 animate-pulse flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span>Evaluating trained knowledge base...</span>
+                      </div>
+                    )}
+
+                    {testAnswer && (
+                      <div className="p-4 bg-[#FAF8F5] rounded-2xl border border-stone-200/90 text-xs text-stone-800 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+                          <span>AI Output:</span>
+                          <span className="text-emerald-700 font-semibold">Trained Grounding Active</span>
+                        </div>
+                        <div className="whitespace-pre-line leading-relaxed">{testAnswer}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

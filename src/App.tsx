@@ -23,6 +23,8 @@ import { ContactUs } from './components/ContactUs';
 import { Footer } from './components/Footer';
 import { AuthModal } from './components/AuthModal';
 import { Toast } from './components/Toast';
+import { ChatWidget } from './components/ChatWidget';
+import { N8nChatWidget } from './components/N8nChatWidget';
 import { Sparkles, ArrowRight, Star, Heart, Gift } from 'lucide-react';
 
 const MainContent: React.FC = () => {
@@ -146,6 +148,12 @@ const MainContent: React.FC = () => {
 
       {/* Global Floating Toast */}
       <Toast />
+
+      {/* Global AI Chat Concierge trained on website data */}
+      <ChatWidget />
+
+      {/* Official n8n Chat Widget */}
+      <N8nChatWidget />
 
       {/* Global Footer */}
       <Footer />
